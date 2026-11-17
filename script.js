@@ -8,8 +8,7 @@ let last = null;
 const $ = id => document.getElementById(id);
 
 const shuffle = a => a.map(x => [Math.random(), x])
-  .sort((p, q) => p[0] - q[0])
-  .map(x => x[1]);
+  .sort((p, q) => p[0] - q[0]).map(x => x[1]);
 
 function mood(m, cls) {
   const ham = $('ham');
@@ -27,19 +26,11 @@ function hud() {
   $('hudbox').innerHTML = `
     <div class="hud pix">
       <div class="m" style="font-size:11px">${nome}</div>
-
-      <div class="m">
-        ${COIN}
-        <span id="mv">${fmt(shown)}</span>
-      </div>
-
+      <div class="m">${COIN}<span id="mv">${fmt(shown)}</span></div>
       <div class="meter">
         <small>Meta: ${fmt(goal)}</small>
-        <div class="track">
-          <i id="bar"></i>
-        </div>
+        <div class="track"><i id="bar"></i></div>
       </div>
-
       <div class="m" style="font-size:11px">
         Fase ${fase + 1}/${FASES.length}
       </div>
@@ -47,12 +38,9 @@ function hud() {
 
   setTimeout(() => {
     const b = $('bar');
-
     if (b) {
-      b.style.width = Math.max(
-        0,
-        Math.min(100, (money / goal) * 100)
-      ) + '%';
+      b.style.width =
+        Math.max(0, Math.min(100, (money / goal) * 100)) + '%';
     }
   }, 30);
 }
@@ -63,21 +51,19 @@ function tween(from, to) {
 
   (function animar(t) {
     const k = Math.min(1, (t - t0) / 700);
-
     shown = Math.round(from + (to - from) * k);
 
-    if (el) {
-      el.textContent = fmt(shown);
-    }
+    if (el) el.textContent = fmt(shown);
 
-    if (k < 1) {
-      requestAnimationFrame(animar);
-    }
+    if (k < 1) requestAnimationFrame(animar);
   })(t0);
 }
 
+/* TELA INICIAL */
+
 function intro() {
   $('hudbox').innerHTML = '';
+
   mood('cool');
 
   $('main').innerHTML = `
@@ -88,10 +74,8 @@ function intro() {
     </p>
 
     <div class="box pix">
-
       <p class="goal">
         <label for="nome">Seu nome:</label>
-
         <input
           id="nome"
           type="text"
@@ -110,7 +94,6 @@ function intro() {
 
       <p class="goal" style="margin-top:10px">
         <label for="lucro">Quanto você pretende lucrar? R$</label>
-
         <input
           id="lucro"
           type="number"
@@ -130,16 +113,24 @@ function intro() {
         id="erro"
         style="font-weight:600;color:#C2185B;min-height:1.4em;margin-top:4px"
       ></p>
-
     </div>
 
     <button class="btn blink" id="go">
       ▶ INICIAR JOGO
     </button>
+
+    <button
+      class="btn"
+      id="abrirCreditos"
+      style="font-size:11px;padding:12px 16px"
+    >
+      CRÉDITOS
+    </button>
   `;
 
-  $('go').onclick = () => {
+  $('abrirCreditos').onclick = creditos;
 
+  $('go').onclick = () => {
     const n = $('nome').value.trim().replace(/[<>&"]/g, '');
     const l = parseInt($('lucro').value, 10);
     const er = $('erro');
@@ -170,8 +161,41 @@ function intro() {
   };
 }
 
-function question() {
+/* TELA DE CRÉDITOS */
 
+function creditos() {
+  $('hudbox').innerHTML = '';
+
+  mood('happy');
+
+  $('main').innerHTML = `
+    <h2>CRÉDITOS</h2>
+
+    <div class="box pix">
+      <p style="font-weight:600;margin-bottom:14px">
+        DESENVOLVIMENTO DO JOGO
+      </p>
+
+      <p>Emily Kuginharski Gomes</p>
+
+      <p style="margin-top:12px">
+        Manuella Schueda Ferst
+      </p>
+    </div>
+
+    <p class="sub">Obrigada por jogar!</p>
+
+    <button class="btn" id="voltarCreditos">
+      ◀ VOLTAR
+    </button>
+  `;
+
+  $('voltarCreditos').onclick = intro;
+}
+
+/* PERGUNTAS E ALTERNATIVAS */
+
+function question() {
   const f = FASES[fase][variant];
 
   hud();
@@ -179,48 +203,37 @@ function question() {
   let fb = '';
 
   if (last) {
-
     const ok = last.d > 0;
 
     fb = `
       <div class="fb pix ${ok ? 'good' : 'bad'}">
-
-        ${ok
-          ? '🎉 Parabéns, ' + nome + '! '
-          : '💥 Ops, ' + nome + '! Efeito negativo: '
+        ${
+          ok
+            ? '🎉 Parabéns, ' + nome + '! '
+            : '💥 Ops, ' + nome + '! Efeito negativo: '
         }
-
         ${last.f}
-
         <span class="chip">
           ${ok ? '+' : '−'}${fmt(Math.abs(last.d))}
         </span>
-
       </div>`;
   }
 
   $('main').innerHTML = `
     ${fb}
-
     <p class="q">${f.q}</p>
-
     <div class="opts" id="opts"></div>
   `;
 
   shuffle(f.o).forEach((o, i) => {
-
     const b = document.createElement('button');
 
     b.className = 'opt';
-
     b.style.animationDelay = (.15 + i * .15) + 's';
-
     b.textContent = o.t;
-
     b.onclick = () => escolher(o);
 
     $('opts').appendChild(b);
-
   });
 
   if (last) {
@@ -233,8 +246,9 @@ function question() {
   }
 }
 
-function escolher(o) {
+/* ESCOLHA DO JOGADOR */
 
+function escolher(o) {
   const from = money;
 
   money = Math.max(0, money + o.d);
@@ -246,7 +260,6 @@ function escolher(o) {
   const p = document.createElement('span');
 
   p.className = 'pop';
-
   p.style.cssText =
     'left:30px;top:70px;color:' +
     (o.d > 0 ? '#7BE0A4' : '#FF5C8A');
@@ -259,13 +272,11 @@ function escolher(o) {
   setTimeout(() => p.remove(), 1500);
 
   if (o.d < 0) {
-
     $('screen').classList.add('bad-shake');
 
     setTimeout(() => {
       $('screen').classList.remove('bad-shake');
     }, 400);
-
   }
 
   tween(from, money);
@@ -276,12 +287,9 @@ function escolher(o) {
   last = o;
 
   setTimeout(() => {
-
     fase++;
 
-    if (money <= 0) {
-      return fim('over');
-    }
+    if (money <= 0) return fim('over');
 
     if (fase >= FASES.length) {
       return fim(money >= goal ? 'win' : 'short');
@@ -290,16 +298,15 @@ function escolher(o) {
     variant = o.d > 0 ? 'g' : 'b';
 
     question();
-
   }, 1300);
 }
 
-function fim(t) {
+/* TELA FINAL */
 
+function fim(t) {
   hud();
 
   const T = {
-
     win: [
       'VOCÊ VENCEU!',
       'happy',
@@ -319,22 +326,20 @@ function fim(t) {
     over: [
       'GAME OVER',
       'sad',
-      nome + ', seu dinheiro acabou. ' +
-      'Cada escolha irresponsável pesa no caixa. ' +
-      'Que tal tentar outro caminho?'
+      nome + ', seu dinheiro acabou. Cada escolha irresponsável pesa no caixa. Que tal tentar outro caminho?'
     ]
-
   }[t];
 
   mood(T[1], T[1]);
 
   $('main').innerHTML = `
-    ${last ? `
-      <div class="fb pix ${last.d > 0 ? 'good' : 'bad'}">
-        ${last.d > 0 ? '🎉 ' : '💥 '}
-        ${last.f}
-      </div>
-    ` : ''}
+    ${
+      last
+        ? `<div class="fb pix ${last.d > 0 ? 'good' : 'bad'}">
+            ${last.d > 0 ? '🎉 ' : '💥 '}${last.f}
+          </div>`
+        : ''
+    }
 
     <h2>${T[0]}</h2>
 
@@ -345,18 +350,25 @@ function fim(t) {
     <button class="btn" id="again">
       ↻ JOGAR DE NOVO
     </button>
+
+    <button
+      class="btn"
+      id="creditsFinal"
+      style="font-size:11px;padding:12px 16px"
+    >
+      CRÉDITOS
+    </button>
   `;
 
   $('again').onclick = intro;
 
+  $('creditsFinal').onclick = creditos;
+
   if (t === 'win') {
-
     for (let i = 0; i < 40; i++) {
-
       const c = document.createElement('i');
 
       c.className = 'cf';
-
       c.style.left = Math.random() * 100 + '%';
 
       c.style.background = [
@@ -366,12 +378,12 @@ function fim(t) {
         '#7BE0A4'
       ][i % 4];
 
-      c.style.animationDelay = Math.random() * 1.5 + 's';
+      c.style.animationDelay =
+        Math.random() * 1.5 + 's';
 
       $('screen').appendChild(c);
 
       setTimeout(() => c.remove(), 5000);
-
     }
   }
 }
