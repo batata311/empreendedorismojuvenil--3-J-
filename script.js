@@ -1,395 +1,109 @@
-/* MOTOR DO JOGO */
-
-const fmt = n => 'R$ ' + n.toLocaleString('pt-BR');
-
-let money, goal, fase, variant, shown, nome = '';
-let last = null;
+/* Motor principal do jogo — módulo JavaScript */
+import {DINHEIRO_INICIAL,LUCRO_MIN,LUCRO_MAX,LUCRO_PADRAO,embaralhar,escolherAleatorio,MENSAGENS,hamster,TREE,COIN,POTION,ARROW,ARROWG,sprite} from "./aleatorio.js";
+import {FASES} from "./perguntas.js";
 
 const $ = id => document.getElementById(id);
+const fmt = n => "R$ " + n.toLocaleString("pt-BR");
+let money=DINHEIRO_INICIAL, goal=DINHEIRO_INICIAL+LUCRO_PADRAO, fase=0, nome="", historico=[], ultimaEscolha=null;
 
-const shuffle = a => a.map(x => [Math.random(), x])
-  .sort((p, q) => p[0] - q[0]).map(x => x[1]);
+function mood(tipo,classe=""){ $("ham").className="ham "+classe; $("ham").innerHTML=hamster(tipo); }
+function prepararCenario(){ $("decoL").innerHTML=POTION+COIN; $("decoR").innerHTML=sprite(ARROW)+sprite(ARROWG); $("tree").innerHTML=TREE; }
 
-function mood(m, cls) {
-  const ham = $('ham');
-  ham.className = 'ham ' + (cls || '');
-  ham.innerHTML = hamster(m);
+function atualizarHUD(){
+ const progresso=Math.min(100,fase/FASES.length*100);
+ $("hudbox").innerHTML=`<div class="hud pix"><div class="m player-name">${nome}</div><div class="m">${COIN}<span>${fmt(money)}</span></div><div class="meter"><small>Meta: ${fmt(goal)}</small><div class="track"><i style="width:${Math.min(100,money/goal*100)}%"></i></div><small>Jornada: ${fase}/${FASES.length} etapas</small><div class="track journey"><i style="width:${progresso}%"></i></div></div></div>`;
 }
 
-function iniciarElementosVisuais() {
-  $('decoL').innerHTML = POTION + COIN;
-  $('decoR').innerHTML = sprite(ARROW) + sprite(ARROWG);
-  $('tree').innerHTML = TREE;
-}
-
-function hud() {
-  $('hudbox').innerHTML = `
-    <div class="hud pix">
-      <div class="m" style="font-size:11px">${nome}</div>
-      <div class="m">${COIN}<span id="mv">${fmt(shown)}</span></div>
-      <div class="meter">
-        <small>Meta: ${fmt(goal)}</small>
-        <div class="track"><i id="bar"></i></div>
-      </div>
-      <div class="m" style="font-size:11px">
-        Fase ${fase + 1}/${FASES.length}
-      </div>
-    </div>`;
-
-  setTimeout(() => {
-    const b = $('bar');
-    if (b) {
-      b.style.width =
-        Math.max(0, Math.min(100, (money / goal) * 100)) + '%';
-    }
-  }, 30);
-}
-
-function tween(from, to) {
-  const el = $('mv');
-  const t0 = performance.now();
-
-  (function animar(t) {
-    const k = Math.min(1, (t - t0) / 700);
-    shown = Math.round(from + (to - from) * k);
-
-    if (el) el.textContent = fmt(shown);
-
-    if (k < 1) requestAnimationFrame(animar);
-  })(t0);
-}
-
-/* TELA INICIAL */
-
-function intro() {
-  $('hudbox').innerHTML = '';
-
-  mood('cool');
-
-  $('main').innerHTML = `
-    <h1>Hamster<br>Empreendedor</h1>
-
-    <p class="sub">
-      Cada escolha vale dinheiro. Dobre o seu caixa antes que ele acabe!
-    </p>
-
-    <div class="box pix">
-      <p class="goal">
-        <label for="nome">Seu nome:</label>
-        <input
-          id="nome"
-          type="text"
-          maxlength="16"
-          placeholder="Digite aqui"
-          autocomplete="off"
-          value="${nome}"
-          style="width:190px"
-        >
-      </p>
-
-      <p style="margin-top:10px">
-        Você começa com <b>${fmt(DINHEIRO_INICIAL)}</b>
-        e tem <b>${FASES.length} decisões</b> pela frente.
-      </p>
-
-      <p class="goal" style="margin-top:10px">
-        <label for="lucro">Quanto você pretende lucrar? R$</label>
-        <input
-          id="lucro"
-          type="number"
-          inputmode="numeric"
-          min="${LUCRO_MIN}"
-          max="${LUCRO_MAX}"
-          value="${LUCRO_PADRAO}"
-        >
-      </p>
-
-      <p style="font-size:14px;margin-top:6px">
-        Meta mínima de lucro: R$ ${LUCRO_MIN}
-        (máximo R$ ${LUCRO_MAX}).
-      </p>
-
-      <p
-        id="erro"
-        style="font-weight:600;color:#C2185B;min-height:1.4em;margin-top:4px"
-      ></p>
-    </div>
-
-    <button class="btn blink" id="go">
-      ▶ INICIAR JOGO
-    </button>
-
-    <button
-      class="btn"
-      id="abrirCreditos"
-      style="font-size:11px;padding:12px 16px"
-    >
-      CRÉDITOS
-    </button>
-  `;
-
-  $('abrirCreditos').onclick = creditos;
-
-  $('go').onclick = () => {
-    const n = $('nome').value.trim().replace(/[<>&"]/g, '');
-    const l = parseInt($('lucro').value, 10);
-    const er = $('erro');
-
-    if (!n) {
-      er.textContent = 'Digite o seu nome para começar.';
-      $('nome').focus();
-      return;
-    }
-
-    if (isNaN(l) || l < LUCRO_MIN || l > LUCRO_MAX) {
-      er.textContent =
-        'A meta de lucro deve ficar entre R$ ' +
-        LUCRO_MIN + ' e R$ ' + LUCRO_MAX + '.';
-
-      $('lucro').focus();
-      return;
-    }
-
-    nome = n;
-    money = shown = DINHEIRO_INICIAL;
-    goal = DINHEIRO_INICIAL + l;
-    fase = 0;
-    variant = 'g';
-    last = null;
-
-    question();
-  };
-}
-
-/* TELA DE CRÉDITOS */
-
-function creditos() {
-  $('hudbox').innerHTML = '';
-
-  mood('happy');
-
-  $('main').innerHTML = `
-    <h2>CRÉDITOS</h2>
-
-    <div class="box pix">
-      <p style="font-weight:600;margin-bottom:14px">
-        DESENVOLVIMENTO DO JOGO
-      </p>
-
-      <p>Emily Kuginharski Gomes</p>
-
-      <p style="margin-top:12px">
-        Manuella Schueda Ferst
-      </p>
-    </div>
-
-    <p class="sub">Obrigada por jogar!</p>
-
-    <button class="btn" id="voltarCreditos">
-      ◀ VOLTAR
-    </button>
-  `;
-
-  $('voltarCreditos').onclick = intro;
-}
-
-/* PERGUNTAS E ALTERNATIVAS */
-
-function question() {
-  const f = FASES[fase][variant];
-
-  hud();
-
-  let fb = '';
-
-  if (last) {
-    const ok = last.d > 0;
-
-    fb = `
-      <div class="fb pix ${ok ? 'good' : 'bad'}">
-        ${
-          ok
-            ? '🎉 Parabéns, ' + nome + '! '
-            : '💥 Ops, ' + nome + '! Efeito negativo: '
-        }
-        ${last.f}
-        <span class="chip">
-          ${ok ? '+' : '−'}${fmt(Math.abs(last.d))}
-        </span>
-      </div>`;
+/* Tabuleiro com três rotas possíveis em cada etapa. */
+function desenharTabuleiro(){
+ let html='<section class="board-wrap"><p class="board-title">SEU CAMINHO</p><div class="board">';
+ for(let i=0;i<FASES.length;i++){
+  const escolha=historico[i];
+  html+=`<div class="board-row ${i===fase?'current':''} ${i<fase?'completed':''}"><span class="board-step">${i+1}</span><span class="board-branches">`;
+  for(let rota=0;rota<3;rota++){
+   const marcada=escolha && escolha.rota===rota;
+   html+=`<span class="board-tile ${marcada?'chosen':''} ${i===fase?'available':''}">${marcada?'★':(i<fase?'·':'◆')}</span>`;
   }
-
-  $('main').innerHTML = `
-    ${fb}
-    <p class="q">${f.q}</p>
-    <div class="opts" id="opts"></div>
-  `;
-
-  shuffle(f.o).forEach((o, i) => {
-    const b = document.createElement('button');
-
-    b.className = 'opt';
-    b.style.animationDelay = (.15 + i * .15) + 's';
-    b.textContent = o.t;
-    b.onclick = () => escolher(o);
-
-    $('opts').appendChild(b);
-  });
-
-  if (last) {
-    mood(
-      last.d > 0 ? 'happy' : 'sad',
-      last.d > 0 ? 'happy' : 'sad'
-    );
-  } else {
-    mood('happy');
-  }
+  html+=`</span><span class="board-label">${FASES[i].titulo}</span></div>`;
+ }
+ return html+'<div class="finish-tile">🏁 CHEGADA</div></div></section>';
 }
 
-/* ESCOLHA DO JOGADOR */
-
-function escolher(o) {
-  const from = money;
-
-  money = Math.max(0, money + o.d);
-
-  document.querySelectorAll('.opt').forEach(b => {
-    b.disabled = true;
-  });
-
-  const p = document.createElement('span');
-
-  p.className = 'pop';
-  p.style.cssText =
-    'left:30px;top:70px;color:' +
-    (o.d > 0 ? '#7BE0A4' : '#FF5C8A');
-
-  p.textContent =
-    (o.d > 0 ? '+' : '−') + fmt(Math.abs(o.d));
-
-  $('screen').appendChild(p);
-
-  setTimeout(() => p.remove(), 1500);
-
-  if (o.d < 0) {
-    $('screen').classList.add('bad-shake');
-
-    setTimeout(() => {
-      $('screen').classList.remove('bad-shake');
-    }, 400);
-  }
-
-  tween(from, money);
-
-  $('bar').style.width =
-    Math.min(100, (money / goal) * 100) + '%';
-
-  last = o;
-
-  setTimeout(() => {
-    fase++;
-
-    if (money <= 0) return fim('over');
-
-    if (fase >= FASES.length) {
-      return fim(money >= goal ? 'win' : 'short');
-    }
-
-    variant = o.d > 0 ? 'g' : 'b';
-
-    question();
-  }, 1300);
+function intro(){
+ $("hudbox").innerHTML=""; mood("cool");
+ $("main").innerHTML=`<h1>Hamster<br>Empreendedor</h1><p class="sub">Escolha seu caminho e faça seu negócio crescer!</p>
+ <div class="box pix"><p class="goal"><label for="nome">Seu nome:</label><input id="nome" maxlength="16" placeholder="Digite aqui" value="${nome}"></p>
+ <p style="margin-top:12px">Você começa com <b>${fmt(DINHEIRO_INICIAL)}</b> e terá <b>${FASES.length} etapas</b>.</p>
+ <p class="goal" style="margin-top:12px"><label for="lucro">Meta de lucro: R$</label><input id="lucro" type="number" min="${LUCRO_MIN}" max="${LUCRO_MAX}" value="${LUCRO_PADRAO}"></p>
+ <p class="hint">Escolha entre R$ ${LUCRO_MIN} e R$ ${LUCRO_MAX} de lucro.</p><p id="erro" class="error"></p></div>
+ <button class="btn blink" id="go">▶ INICIAR JOGO</button><button class="btn secondary" id="comoJogar">COMO JOGAR</button><button class="btn secondary" id="abrirCreditos">CRÉDITOS</button>`;
+ $("go").onclick=iniciar; $("comoJogar").onclick=mostrarFluxograma; $("abrirCreditos").onclick=creditos;
 }
 
-/* TELA FINAL */
-
-function fim(t) {
-  hud();
-
-  const T = {
-    win: [
-      'VOCÊ VENCEU!',
-      'happy',
-      nome + ', você fechou com ' + fmt(money) +
-      ' e bateu a meta de ' + fmt(goal) +
-      '. Decisões responsáveis fazem o dinheiro crescer!'
-    ],
-
-    short: [
-      'QUASE LÁ!',
-      'sad',
-      nome + ', você terminou com ' + fmt(money) +
-      ', mas a meta era ' + fmt(goal) +
-      '. Revise as escolhas e tente de novo.'
-    ],
-
-    over: [
-      'GAME OVER',
-      'sad',
-      nome + ', seu dinheiro acabou. Cada escolha irresponsável pesa no caixa. Que tal tentar outro caminho?'
-    ]
-  }[t];
-
-  mood(T[1], T[1]);
-
-  $('main').innerHTML = `
-    ${
-      last
-        ? `<div class="fb pix ${last.d > 0 ? 'good' : 'bad'}">
-            ${last.d > 0 ? '🎉 ' : '💥 '}${last.f}
-          </div>`
-        : ''
-    }
-
-    <h2>${T[0]}</h2>
-
-    <div class="box pix">
-      <p>${T[2]}</p>
-    </div>
-
-    <button class="btn" id="again">
-      ↻ JOGAR DE NOVO
-    </button>
-
-    <button
-      class="btn"
-      id="creditsFinal"
-      style="font-size:11px;padding:12px 16px"
-    >
-      CRÉDITOS
-    </button>
-  `;
-
-  $('again').onclick = intro;
-
-  $('creditsFinal').onclick = creditos;
-
-  if (t === 'win') {
-    for (let i = 0; i < 40; i++) {
-      const c = document.createElement('i');
-
-      c.className = 'cf';
-      c.style.left = Math.random() * 100 + '%';
-
-      c.style.background = [
-        '#FF5C8A',
-        '#FFB800',
-        '#fff',
-        '#7BE0A4'
-      ][i % 4];
-
-      c.style.animationDelay =
-        Math.random() * 1.5 + 's';
-
-      $('screen').appendChild(c);
-
-      setTimeout(() => c.remove(), 5000);
-    }
-  }
+function iniciar(){
+ const n=$("nome").value.trim().replace(/[<>&"']/g,"");
+ const l=Number.parseInt($("lucro").value,10);
+ if(!n){$("erro").textContent="Digite seu nome para começar.";$("nome").focus();return;}
+ if(!Number.isInteger(l)||l<LUCRO_MIN||l>LUCRO_MAX){$("erro").textContent=`A meta deve ficar entre R$ ${LUCRO_MIN} e R$ ${LUCRO_MAX}.`;$("lucro").focus();return;}
+ nome=n; money=DINHEIRO_INICIAL; goal=DINHEIRO_INICIAL+l; fase=0; historico=[]; ultimaEscolha=null; mostrarPergunta();
 }
 
-/* PREPARA A ARTE E MOSTRA A TELA INICIAL */
+function mostrarFluxograma(){
+ $("main").innerHTML=`<h2>COMO JOGAR</h2><div class="box pix flow">
+ <div class="flow-node">INÍCIO: definir nome e meta</div><div class="flow-arrow">↓</div>
+ <div class="flow-node">Ler a situação financeira</div><div class="flow-arrow">↓</div>
+ <div class="flow-node">Escolher 1 entre 3 caminhos</div><div class="flow-arrow">↓</div>
+ <div class="flow-node">Atualizar dinheiro e avançar no tabuleiro</div><div class="flow-arrow">↓</div>
+ <div class="flow-node decision">O dinheiro acabou?</div><div class="flow-arrow">↙ NÃO &nbsp;&nbsp; SIM ↘</div>
+ <div class="flow-split"><span>Próxima etapa</span><span>GAME OVER</span></div><div class="flow-arrow">↓</div>
+ <div class="flow-node">Chegada: conferir a meta e finalizar</div></div><button class="btn" id="voltar">◀ VOLTAR</button>`;
+ $("voltar").onclick=intro; mood("happy");
+}
 
-iniciarElementosVisuais();
+function mostrarPergunta(){
+ if(money<=0)return finalizar("over");
+ if(fase>=FASES.length)return finalizar(money>=goal?"win":"short");
+ atualizarHUD();
+ const atual=FASES[fase], mensagem=escolherAleatorio(MENSAGENS);
+ const feedback=ultimaEscolha?`<div class="fb pix ${ultimaEscolha.d>=0?'good':'bad'}">${ultimaEscolha.f}<span class="chip">${ultimaEscolha.d>=0?'+':'−'}${fmt(Math.abs(ultimaEscolha.d))}</span></div>`:"";
+ $("main").innerHTML=`${desenharTabuleiro()}${feedback}<p class="stage-label">ETAPA ${fase+1} DE ${FASES.length} — ${atual.titulo}</p><p class="q">${atual.q}</p><p class="tip">${mensagem}</p><div class="opts" id="opts"></div>`;
+ /* O for...of percorre as três alternativas e cria os botões. */
+ for(const opcao of embaralhar(atual.o)){
+  const botao=document.createElement("button"); botao.className="opt"; botao.textContent=opcao.t;
+  botao.onclick=()=>escolher(opcao); $("opts").appendChild(botao);
+ }
+ mood("happy");
+}
 
-intro();
+function escolher(opcao){
+ document.querySelectorAll(".opt").forEach(botao=>botao.disabled=true);
+ money=Math.max(0,money+opcao.d); ultimaEscolha=opcao; historico.push(opcao); fase++;
+ atualizarHUD();
+ const pop=document.createElement("span"); pop.className="pop"; pop.textContent=`${opcao.d>=0?'+':'−'}${fmt(Math.abs(opcao.d))}`;
+ pop.style.cssText=`left:30px;top:70px;color:${opcao.d>=0?'#168A45':'#C2185B'}`; $("screen").appendChild(pop); setTimeout(()=>pop.remove(),1400);
+ mood(opcao.d>=0?"happy":"sad",opcao.d>=0?"happy":"sad");
+ setTimeout(()=>{if(money<=0)return finalizar("over");if(fase>=FASES.length)return finalizar(money>=goal?"win":"short");mostrarPergunta();},1100);
+}
+
+function finalizar(tipo){
+ atualizarHUD();
+ const finais={
+ win:["VOCÊ VENCEU!","happy",`${nome}, você chegou ao final com ${fmt(money)} e alcançou sua meta de ${fmt(goal)}!`],
+ short:["FIM DE JOGO","sad",`${nome}, você terminou com ${fmt(money)}, mas sua meta era ${fmt(goal)}. Tente outro caminho!`],
+ over:["GAME OVER","sad",`${nome}, seu dinheiro acabou antes da chegada. Reflita sobre as escolhas e tente novamente!`]
+ };
+ const [titulo,expressao,texto]=finais[tipo]; mood(expressao,expressao);
+ $("main").innerHTML=`${desenharTabuleiro()}<h2>${titulo}</h2><div class="box pix"><p>${texto}</p></div><p class="sub">Você percorreu ${fase} de ${FASES.length} etapas.</p><button class="btn" id="again">↻ JOGAR NOVAMENTE</button><button class="btn secondary" id="creditsFinal">CRÉDITOS</button>`;
+ $("again").onclick=intro; $("creditsFinal").onclick=creditos;
+ if(tipo==="win")confetes();
+}
+
+function confetes(){
+ for(let i=0;i<35;i++){const p=document.createElement("i");p.className="cf";p.style.left=Math.random()*100+"%";p.style.background=["#FF5C8A","#FFB800","#fff","#7BE0A4"][i%4];p.style.animationDelay=Math.random()*1.5+"s";$("screen").appendChild(p);setTimeout(()=>p.remove(),5000);}
+}
+function creditos(){
+ $("hudbox").innerHTML="";mood("happy");
+ $("main").innerHTML=`<h2>CRÉDITOS</h2><div class="box pix"><p class="credit-heading">DESENVOLVIMENTO DO JOGO</p><p>Emily Kuginharski Gomes</p><p class="credit-name">Manuella Schueda Ferst</p></div><p class="sub">Obrigada por jogar!</p><button class="btn" id="voltarCreditos">◀ VOLTAR</button>`;
+ $("voltarCreditos").onclick=intro;
+}
+prepararCenario(); intro();
